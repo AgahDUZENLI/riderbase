@@ -1,8 +1,3 @@
--- ---------- SETTINGS ----------
-INSERT INTO settings (settings_id)
-SELECT 1
-WHERE NOT EXISTS (SELECT 1 FROM settings WHERE settings_id = 1);
-
 -- ---------- LOCATIONS (with coordinates) ----------
 INSERT INTO location (name, is_hot_area, commission_discount_pct, latitude, longitude)
 SELECT 'Downtown', TRUE, 5.00, 29.7604, -95.3698

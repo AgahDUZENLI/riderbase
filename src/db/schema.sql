@@ -1,19 +1,3 @@
-
--- ---------- Global settings ----------
-CREATE TABLE IF NOT EXISTS settings (
-  settings_id            INT PRIMARY KEY,
-  tax_pct                NUMERIC(5,2)  NOT NULL DEFAULT 8.25,
-  company_commission_pct NUMERIC(5,2)  NOT NULL DEFAULT 25.00,
-  rider_fee_pct          NUMERIC(5,2)  NOT NULL DEFAULT 3.00,
-  driver_deduction_pct   NUMERIC(5,2)  NOT NULL DEFAULT 5.00,
-  CONSTRAINT settings_pct_chk CHECK (
-    tax_pct BETWEEN 0 AND 100
-    AND company_commission_pct BETWEEN 0 AND 100
-    AND rider_fee_pct BETWEEN 0 AND 100
-    AND driver_deduction_pct BETWEEN 0 AND 100
-  )
-);
-
 CREATE TABLE IF NOT EXISTS rider (
   rider_id BIGSERIAL PRIMARY KEY,
   name     VARCHAR(120) NOT NULL,
