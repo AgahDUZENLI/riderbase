@@ -17,7 +17,6 @@ export async function POST(req: Request) {
     idleTimeoutMillis: 10_000,
   })
 
-  // Grab the most recent requested ride for this driver
   const sql = `
     SELECT
       r.ride_id,

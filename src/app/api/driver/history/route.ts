@@ -22,10 +22,6 @@ export async function POST(req: Request) {
     idleTimeoutMillis: 10_000,
   })
 
-  // IMPORTANT:
-  //  - Return field names that match your RideRow type
-  //  - CAST NUMERICs to float for clean JSON numbers
-  //  - Include requested_at and status
   const sql = `
     SELECT
       r.ride_id,

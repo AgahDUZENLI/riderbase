@@ -33,8 +33,6 @@ export async function POST(req: Request) {
     max: 4, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 5_000,
   })
 
-  // Pull all percentages from deduction_type.
-  // Be tolerant to name variants but DO NOT create/rename anything—read-only here.
   const sql = `
     WITH ded AS (
       SELECT
@@ -56,8 +54,6 @@ export async function POST(req: Request) {
 
         -- Driver deduction %
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Driver Deduction' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE name = 'driver_deduction' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%driver%deduction%' ORDER BY deduction_type_id LIMIT 1),
           5.00
         ) AS driver_deduction_pct,
@@ -164,16 +160,15 @@ export async function POST(req: Request) {
 
   try {
     const { rows } = await pool.query(sql, [
-      origin_location_id,           // $1
-      dest_location_id,             // $2
-      category_id,                  // $3
+      origin_location_id,          
+      dest_location_id,            
+      category_id,              
     ])
 
     if (!rows.length) {
       return NextResponse.json({ error: 'Unable to compute quote' }, { status: 400 })
     }
 
-    // Shape matches your Quote type exactly
     return NextResponse.json({
       distance_miles: Number(rows[0].distance_miles),
       hot_area: !!rows[0].hot_area,
