@@ -26,9 +26,6 @@ export async function POST(req: Request) {
     connectionTimeoutMillis: 5_000,
   })
 
-  // NOTE:
-  // - ded: pull all percentages from deduction_type with tolerant matching
-  // - loc/dist/rate: same as before
   const sql = `
     WITH ded AS (
       SELECT
