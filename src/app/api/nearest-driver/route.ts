@@ -10,28 +10,18 @@ export async function POST(req: Request) {
   }
 
   const pool = new Pool({
-    host: cfg.host,
-    port: Number(cfg.port),
-    database: cfg.database,
-    user: cfg.user,
-    password: cfg.password,
-    max: 4,
-    idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 5_000,
+    host: cfg.host, port: Number(cfg.port), database: cfg.database,
+    user: cfg.user, password: cfg.password,
+    max: 4, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 5_000,
   })
 
-  // Nearest driver by Haversine; must be online AND recently active
-  // (tweak the interval as you like)
   const sql = `
 WITH pick AS (
   SELECT latitude AS plat, longitude AS plng
-  FROM location
-  WHERE location_id = $1
+  FROM location WHERE location_id = $1
 )
 SELECT
-  d.driver_id,
-  d.name,
-  d.email,
+  d.driver_id, d.name, d.email, d.is_online, d.last_seen_at,
   2 * 3958.7613 * ASIN(
     SQRT(
       POWER(SIN(RADIANS(d.current_latitude  - p.plat) / 2), 2) +
@@ -49,10 +39,9 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) loc2 ON true
 WHERE d.is_online = TRUE
-  AND d.last_seen_at > NOW() - INTERVAL '2 minutes'
-  AND d.current_latitude IS NOT NULL
+  AND d.current_latitude  IS NOT NULL
   AND d.current_longitude IS NOT NULL
-ORDER BY distance_miles
+ORDER BY distance_miles NULLS LAST
 LIMIT 1;
   `
 
@@ -62,12 +51,14 @@ LIMIT 1;
       return NextResponse.json({ error: 'No online drivers found' }, { status: 404 })
     }
     const r = rows[0] as any
-    const distance = Number(r.distance_miles ?? 0)
-    const eta_min = Math.max(1, Math.round(distance * (60 / 18))) // ~18 mph avg
+    const distance = Number(r.distance_miles)
+    const eta_min = Math.max(1, Math.round(distance * (60 / 18))) // ~18 mph city avg
     return NextResponse.json({
       driver_id: r.driver_id,
       name: r.name,
       email: r.email,
+      is_online: r.is_online,
+      last_seen_at: r.last_seen_at,
       distance_miles: distance,
       eta_min,
       driver_area: r.driver_area ?? null,

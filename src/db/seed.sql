@@ -82,8 +82,26 @@ WHERE c.name='Economy' AND lo.name='Downtown' AND ld.name='Galleria'
 
 -- ---------- DEDUCTION TYPES ----------
 INSERT INTO deduction_type (name, default_pct)
-SELECT 'App Maintenance', 5.00
-WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name='App Maintenance');
+SELECT 'company_commission', 25.00
+WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name = 'company_commission');
+
+INSERT INTO deduction_type (name, default_pct)
+SELECT 'driver_deduction', 5.00
+WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name = 'driver_deduction');
+
+INSERT INTO deduction_type (name, default_pct)
+SELECT 'app_maintenance', 5.00
+WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name = 'app_maintenance');
+
+INSERT INTO deduction_type (name, default_pct)
+SELECT 'tax', 8.25
+WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name = 'tax');
+
+INSERT INTO deduction_type (name, default_pct)
+SELECT 'rider_fee', 8.25
+WHERE NOT EXISTS (SELECT 1 FROM deduction_type WHERE name = 'rider_fee');
+
+
 
 -- ---------- RIDERS ----------
 INSERT INTO rider (name, email)

@@ -22,7 +22,6 @@ export default function HomePage() {
     } catch {}
   }, [])
 
-  // Allow setup screen to emit a ready event
   useEffect(() => {
     const onReady = () => setView('rider')
     window.addEventListener('rb:ready', onReady)
@@ -32,7 +31,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50 flex items-start justify-center p-6">
       <div className="w-full max-w-6xl">
-        {/* --- Top Tabs --- */}
+
         <div className="mb-4 flex gap-2">
           <button
             onClick={() => setView('setup')}

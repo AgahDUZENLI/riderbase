@@ -20,6 +20,21 @@ type RideReq = {
   dest_name: string
   category_name: string
   distance_miles: number | null
+
+  rate_cents_per_mile_applied: number
+
+  fare_base_cents: number
+  rider_fee_cents: number
+  tax_cents: number
+  fare_total_cents: number
+  rider_fee_pct_applied: number
+  tax_pct_applied: number
+
+  company_commission_cents: number
+  driver_deduction_cents: number
+  company_commission_pct_applied: number
+  driver_deduction_pct_applied: number
+
   driver_payout_cents: number
 }
 
@@ -245,6 +260,49 @@ export default function DriverDashboard() {
               <div>
                 <div className="text-gray-500">Payout</div>
                 <div className="font-medium">${money(ride.driver_payout_cents)}</div>
+              </div>
+            </div>
+
+            {/* Payout & Fees Breakdown — only render when ride exists */}
+            <div className="mt-6 rounded-xl border p-4">
+              <div className="font-medium mb-2">Payout Breakdown</div>
+
+              {/* Context row */}
+              <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                <div>
+                  <div className="text-gray-500">Distance</div>
+                  <div className="font-medium">{miles(ride.distance_miles)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Rate</div>
+                  <div className="font-medium">
+                    ${money(ride.rate_cents_per_mile_applied)} / mi
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Base fare</span>
+                  <span>${money(ride.fare_base_cents)}</span>
+                </div>
+
+
+                <hr className="my-2" />
+
+                <div className="flex justify-between">
+                  <span>Company commission ({ride.company_commission_pct_applied}%)</span>
+                  <span>- ${money(ride.company_commission_cents)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Driver deduction ({ride.driver_deduction_pct_applied}%)</span>
+                  <span>- ${money(ride.driver_deduction_cents)}</span>
+                </div>
+
+                <div className="flex justify-between text-green-700 font-semibold mt-2">
+                  <span>Driver payout (net)</span>
+                  <span>${money(ride.driver_payout_cents)}</span>
+                </div>
               </div>
             </div>
 
