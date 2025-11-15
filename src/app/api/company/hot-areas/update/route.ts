@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     ),
     base AS (
       SELECT COALESCE(
-        (SELECT default_pct FROM deduction_type WHERE name = 'Company Commission'),
+        (SELECT default_pct FROM deduction_type WHERE name = 'company_commission'),
         20.00
       ) AS base_commission
     )

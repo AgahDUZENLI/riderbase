@@ -6,7 +6,7 @@ type Db = { host:string; port:string; database:string; user:string; password:str
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  const { cfg, rider_id, limit = 20 } = body as { cfg: Db; rider_id: number; limit?: number }
+  const { cfg, rider_id, limit = 50 } = body as { cfg: Db; rider_id: number; limit?: number }
 
   if (!cfg || !rider_id) {
     return NextResponse.json({ error: 'Missing cfg or rider_id' }, { status: 400 })
@@ -29,20 +29,21 @@ export async function POST(req: Request) {
       r.start_time,
       r.end_time,
       r.status,
-      cat.name AS category_name,
-      lo.name  AS origin_name,
-      ld.name  AS dest_name,
-      d.name   AS driver_name,
-      r.distance_miles,
+      c.name          AS category_name,
+      lo.name         AS origin_name,
+      ld.name         AS dest_name,
+      d.name          AS driver_name,
+      r.distance_miles::float8 AS distance_miles,
       r.fare_total_cents,
       r.driver_payout_cents,
-      p.method AS payment_method
+      COALESCE(p.method, NULL) AS payment_method
     FROM ride r
-    JOIN category cat ON cat.category_id = r.category_id
-    JOIN location lo  ON lo.location_id  = r.origin_location_id
-    JOIN location ld  ON ld.location_id  = r.dest_location_id
-    JOIN driver   d   ON d.driver_id     = r.driver_id
-    LEFT JOIN payment p ON p.ride_id = r.ride_id
+    JOIN location lo ON lo.location_id = r.origin_location_id
+    JOIN location ld ON ld.location_id = r.dest_location_id
+    JOIN category c  ON c.category_id  = r.category_id
+    JOIN driver  d   ON d.driver_id    = r.driver_id
+    LEFT JOIN payment p
+      ON p.ride_id = r.ride_id
     WHERE r.rider_id = $1
     ORDER BY r.requested_at DESC
     LIMIT $2;
@@ -51,9 +52,9 @@ export async function POST(req: Request) {
   try {
     const { rows } = await pool.query(sql, [rider_id, limit])
     return NextResponse.json({ rides: rows })
-  } catch (e: any) {
+  } catch (e:any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   } finally {
-    await pool.end().catch(() => {})
+    await pool.end().catch(()=>{})
   }
 }

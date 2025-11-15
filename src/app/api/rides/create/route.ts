@@ -8,14 +8,26 @@ type PaymentMethod = 'card' | 'wallet'
 export async function POST(req: Request) {
   const body = await req.json()
 
-  const { cfg, rider_id, driver_id, origin_location_id, dest_location_id, category_id, method } = body as {
-    cfg: DbCfg,
-    rider_id: number,
-    driver_id: number,
-    origin_location_id: number,
-    dest_location_id: number,
-    category_id: number,
+  const {
+    cfg,
+    rider_id,
+    driver_id,
+    origin_location_id,
+    dest_location_id,
+    category_id,
+    method,
+  } = body as {
+    cfg: DbCfg
+    rider_id: number
+    driver_id: number
+    origin_location_id: number
+    dest_location_id: number
+    category_id: number
     method?: PaymentMethod
+  }
+
+  if (!cfg || !rider_id || !driver_id || !origin_location_id || !dest_location_id || !category_id) {
+    return NextResponse.json({ error: 'Missing params' }, { status: 400 })
   }
 
   const pool = new Pool({
@@ -47,7 +59,7 @@ export async function POST(req: Request) {
           5.00
         ) AS driver_deduction_pct,
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Tax' LIMIT 1),
+          (SELECT default_pct FROM deduction_type WHERE name = 'tax' LIMIT 1),
           8.25
         ) AS tax_pct
     ),
@@ -87,9 +99,9 @@ export async function POST(req: Request) {
       SELECT
         r.rate_cents_per_mile_applied,
         GREATEST(0, LEAST(100, d.company_commission_pct - ds.avg_discount)) AS company_commission_pct_applied,
-        d.rider_fee_pct    AS rider_fee_pct_applied,
-        d.driver_deduction_pct AS driver_deduction_pct_applied,
-        d.tax_pct          AS tax_pct_applied,
+        d.rider_fee_pct          AS rider_fee_pct_applied,
+        d.driver_deduction_pct   AS driver_deduction_pct_applied,
+        d.tax_pct                AS tax_pct_applied,
         ds.distance_miles
       FROM rate r, ded d, dist ds
     ),
@@ -108,16 +120,20 @@ export async function POST(req: Request) {
       SELECT
         p.*,
         ROUND(p.fare_base_cents * p.rider_fee_pct_applied / 100.0) AS rider_fee_cents,
-        ROUND( (p.fare_base_cents + ROUND(p.fare_base_cents * p.rider_fee_pct_applied / 100.0))
-              * p.tax_pct_applied / 100.0) AS tax_cents
+        ROUND(
+          (p.fare_base_cents + ROUND(p.fare_base_cents * p.rider_fee_pct_applied / 100.0))
+          * p.tax_pct_applied / 100.0
+        ) AS tax_cents
       FROM priced p
     ),
     split AS (
       SELECT
         x.*,
         ROUND(x.fare_base_cents * x.company_commission_pct_applied / 100.0) AS company_commission_cents,
-        ROUND((x.fare_base_cents - ROUND(x.fare_base_cents * x.company_commission_pct_applied / 100.0))
-              * x.driver_deduction_pct_applied / 100.0) AS driver_deduction_cents
+        ROUND(
+          (x.fare_base_cents - ROUND(x.fare_base_cents * x.company_commission_pct_applied / 100.0))
+          * x.driver_deduction_pct_applied / 100.0
+        ) AS driver_deduction_cents
       FROM parts x
     ),
     final AS (
@@ -146,22 +162,46 @@ export async function POST(req: Request) {
       rate_cents_per_mile_applied, status
     )
     SELECT
-      $4::bigint AS rider_id, $5::bigint AS driver_id, $3::int AS category_id, $1::int AS origin_id, $2::int AS dest_id,
-      NOW() AS requested_at, f.distance_miles,
-      f.fare_base_cents, f.rider_fee_cents, f.tax_cents, f.fare_total_cents,
-      f.company_commission_cents, f.driver_deduction_cents, f.driver_payout_cents,
-      f.company_commission_pct_applied, f.rider_fee_pct_applied, f.driver_deduction_pct_applied, f.tax_pct_applied,
-      f.rate_cents_per_mile_applied, 'requested'
+      $4::bigint AS rider_id,
+      $5::bigint AS driver_id,
+      $3::int    AS category_id,
+      $1::int    AS origin_id,
+      $2::int    AS dest_id,
+      NOW()      AS requested_at,
+      f.distance_miles,
+      f.fare_base_cents,
+      f.rider_fee_cents,
+      f.tax_cents,
+      f.fare_total_cents,
+      f.company_commission_cents,
+      f.driver_deduction_cents,
+      f.driver_payout_cents,
+      f.company_commission_pct_applied,
+      f.rider_fee_pct_applied,
+      f.driver_deduction_pct_applied,
+      f.tax_pct_applied,
+      f.rate_cents_per_mile_applied,
+      'requested'
     FROM final f
     RETURNING ride_id, fare_total_cents, driver_payout_cents;
   `
 
+  let client
   try {
-    const ins = await pool.query(sql, [
-      origin_location_id, dest_location_id, category_id, rider_id, driver_id,
+    client = await pool.connect()
+    await client.query('BEGIN')
+
+    // Insert ride
+    const ins = await client.query(sql, [
+      origin_location_id,
+      dest_location_id,
+      category_id,
+      rider_id,
+      driver_id,
     ])
 
     if (!ins.rows.length) {
+      await client.query('ROLLBACK')
       return NextResponse.json({ error: 'Could not insert ride' }, { status: 400 })
     }
 
@@ -169,17 +209,24 @@ export async function POST(req: Request) {
     const ride_id: number = Number(ride.ride_id)
     const total_cents: number = Number(ride.fare_total_cents)
 
-    await pool.query(
+    //Insert payment
+    await client.query(
       `INSERT INTO payment (ride_id, method, amount_total_cents, status, paid_at)
        VALUES ($1, $2, $3, 'authorized', NOW())
        ON CONFLICT (ride_id, method) DO NOTHING`,
       [ride_id, payMethod, total_cents]
     )
 
+    await client.query('COMMIT')
+
     return NextResponse.json({ ok: true, ride_id, total_cents })
-  } catch (e:any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (e: any) {
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {})
+    }
+    return NextResponse.json({ error: e.message || 'Ride creation failed' }, { status: 500 })
   } finally {
-    await pool.end().catch(()=>{})
+    if (client) client.release()
+    await pool.end().catch(() => {})
   }
 }

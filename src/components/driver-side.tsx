@@ -65,13 +65,11 @@ export default function DriverDashboard() {
   const [savingOnline, setSavingOnline] = useState(false)
   const [msg, setMsg] = useState('')
 
-  // formatters (avoid .toFixed() in JSX)
   const nf2 = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const money = (cents: number | null | undefined) => nf2.format(((cents ?? 0) as number) / 100)
   const miles = (v: number | null | undefined) => (v == null ? '—' : `${nf2.format(v)} mi`)
   const dateTime = (iso: string) => { try { return new Date(iso).toLocaleString() } catch { return iso } }
 
-  // initial load (cfg + driver list)
   useEffect(() => {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) { setMsg('⚠️ Run Setup first.'); return }
@@ -95,21 +93,14 @@ export default function DriverDashboard() {
   async function refreshAll(selectedId: number) {
     if (!cfg) return
 
-    // glance (also returns is_online)
+    // glance
     const meta = await fetch('/api/driver/meta', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ cfg, driver_id: selectedId }),
     }).then(r => r.json()).catch(() => null)
 
-    if (meta && !meta.error && meta.glance) {
-      setCurrentArea(meta.glance.current_area || '')
-      setEarnToday(Number(meta.glance.earnings_today_cents || 0))
-      setRidesDone(Number(meta.glance.rides_completed_today || 0))
-      if (typeof meta.glance.is_online === 'boolean') setIsOnline(meta.glance.is_online)
-    }
-
-    // queue (one pending request if any)
+    // queue
     const q = await fetch('/api/driver/queue', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -117,7 +108,7 @@ export default function DriverDashboard() {
     }).then(r => r.json()).catch(() => null)
     setRide(q?.ride ?? null)
 
-    // history (last 10)
+    // history
     const hist = await fetch('/api/driver/history', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -146,7 +137,6 @@ export default function DriverDashboard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Accept failed')
       setMsg('✅ Ride accepted')
-      // Immediately re-load glance, queue, and history so totals update now
       await refreshAll(Number(driverId))
     } catch (e:any) {
       setMsg(`❌ ${e.message}`)
@@ -155,7 +145,7 @@ export default function DriverDashboard() {
     }
   }
 
-  // read current is_online from DB (authoritative)
+  // read current is_online from DB
   async function fetchOnlineFromDb(currentDriverId: number) {
     if (!cfg) return
     try {
@@ -172,10 +162,9 @@ export default function DriverDashboard() {
         setIsOnline(Boolean(data.is_online))
         setDrivers(ds => ds.map(d => d.driver_id === currentDriverId ? { ...d, is_online: Boolean(data.is_online) } : d))
       }
-    } catch { /* ignore */ }
+    } catch {  }
   }
 
-  // toggle availability and set UI from DB response
   async function onToggleOnline(next: boolean) {
     if (!cfg || !driverId || savingOnline) return
     setSavingOnline(true); setMsg('')
@@ -189,7 +178,7 @@ export default function DriverDashboard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to update availability')
 
-      // set from DB (authoritative)
+      // set from DB
       setIsOnline(Boolean(data.is_online))
       setDrivers(ds => ds.map(d =>
         d.driver_id === Number(driverId) ? { ...d, is_online: Boolean(data.is_online) } : d
@@ -197,23 +186,19 @@ export default function DriverDashboard() {
       await refreshAll(Number(driverId))
     } catch (e:any) {
       setMsg(`❌ ${e.message}`)
-      await fetchOnlineFromDb(Number(driverId)) // hard sync on error
+      await fetchOnlineFromDb(Number(driverId))
     } finally {
       setSavingOnline(false)
     }
   }
-
-  // keep switch synced if changed elsewhere (optional small heartbeat)
   useEffect(() => {
     if (!cfg || !driverId) return
     fetchOnlineFromDb(Number(driverId))
     const id = setInterval(() => fetchOnlineFromDb(Number(driverId)), 15000)
     return () => clearInterval(id)
-  }, [cfg, driverId]) // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [cfg, driverId])
   return (
     <div className="space-y-6">
-      {/* Header bar: driver dropdown */}
       <div className="flex items-center gap-3">
         <span className="text-sm text-gray-600">Driver dashboard</span>
         <select
@@ -263,7 +248,7 @@ export default function DriverDashboard() {
               </div>
             </div>
 
-            {/* Payout & Fees Breakdown — only render when ride exists */}
+            {/* Payout & Fees Breakdown*/}
             <div className="mt-6 rounded-xl border p-4">
               <div className="font-medium mb-2">Payout Breakdown</div>
 

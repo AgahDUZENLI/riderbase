@@ -19,8 +19,6 @@ type DeductionRow = { deduction_type_id?: number; name: string; default_pct: num
 export default function CompanyDashboard() {
   const [tab, setTab] = useState<'overview'|'reports'|'hot'|'settings'>('overview')
   const [cfg, setCfg] = useState<DbCfg|null>(null)
-  const [range, setRange] = useState<'7d'|'30d'|'all'>('7d')
-
   const [ov, setOv] = useState<Overview| null>(null)
   const [hot, setHot] = useState<HotRow[]>([])
   const [routes, setRoutes] = useState<RouteRow[]>([])
@@ -45,12 +43,12 @@ export default function CompanyDashboard() {
     fetch('/api/company/overview', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ cfg, range })
+      body: JSON.stringify({ cfg })
     })
       .then(r=>r.json())
       .then(d => { if(!d.error) setOv(d) })
       .catch(()=>{})
-  }, [cfg, range])
+  }, [cfg])
 
   // reports
   useEffect(() => {
@@ -58,7 +56,7 @@ export default function CompanyDashboard() {
     fetch('/api/company/reports', {
       method:'POST',
       headers:{'content-type':'application/json'},
-      body: JSON.stringify({ cfg, range })
+      body: JSON.stringify({ cfg })
     })
       .then(r=>r.json())
       .then(d => {
@@ -69,7 +67,7 @@ export default function CompanyDashboard() {
         }
       })
       .catch(()=>{})
-  }, [cfg, tab, range])
+  }, [cfg, tab])
 
   // hot areas
   useEffect(() => {
