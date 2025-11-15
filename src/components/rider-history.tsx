@@ -21,6 +21,7 @@ type RideRow = {
   distance_miles: number | null
   fare_total_cents: number
   driver_payout_cents: number
+  payment_method: string
 }
 
 export default function RiderHistory() {
@@ -124,6 +125,7 @@ export default function RiderHistory() {
                 <th className="py-2 pr-3">Driver</th>
                 <th className="py-2 pr-3">Miles</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Pay</th>
                 <th className="py-2">Status</th>
               </tr>
             </thead>
@@ -138,6 +140,7 @@ export default function RiderHistory() {
                   <td className="py-2 pr-3">{r.driver_name}</td>
                   <td className="py-2 pr-3">{miles(r.distance_miles)}</td>
                   <td className="py-2 pr-3">${money(r.fare_total_cents)}</td>
+                  <td className="py-2 pr-3">{r.payment_method ?? '—'}</td>
                   <td className="py-2">
                     <span className="rounded-full px-2 py-0.5 text-xs border">{r.status}</span>
                   </td>

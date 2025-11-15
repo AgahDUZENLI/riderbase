@@ -38,17 +38,13 @@ export async function POST(req: Request) {
       SELECT
         -- Company commission %
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Company Commission' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE name = 'company_commission' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%commission%' ORDER BY deduction_type_id LIMIT 1),
           20.00
         ) AS company_commission_pct,
 
         -- Rider fee %
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Rider Fee' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE name = 'rider_fee' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%rider%fee%' ORDER BY deduction_type_id LIMIT 1),
           3.00
         ) AS rider_fee_pct,
 
@@ -60,9 +56,7 @@ export async function POST(req: Request) {
 
         -- Tax %
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Tax' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%tax%' ORDER BY deduction_type_id LIMIT 1),
-          8.25
+          (SELECT default_pct FROM deduction_type WHERE name = 'tax' LIMIT 1),          8.25
         ) AS tax_pct
     ),
     loc AS (

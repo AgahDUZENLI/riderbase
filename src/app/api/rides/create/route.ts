@@ -3,16 +3,19 @@ import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 
 type DbCfg = { host:string; port:string; database:string; user:string; password:string }
+type PaymentMethod = 'card' | 'wallet'
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { cfg, rider_id, driver_id, origin_location_id, dest_location_id, category_id } = body as {
+
+  const { cfg, rider_id, driver_id, origin_location_id, dest_location_id, category_id, method } = body as {
     cfg: DbCfg,
     rider_id: number,
     driver_id: number,
     origin_location_id: number,
     dest_location_id: number,
-    category_id: number
+    category_id: number,
+    method?: PaymentMethod
   }
 
   const pool = new Pool({
@@ -26,37 +29,25 @@ export async function POST(req: Request) {
     connectionTimeoutMillis: 5_000,
   })
 
+  const payMethod: PaymentMethod = method === 'wallet' ? 'wallet' : 'card'
+
   const sql = `
     WITH ded AS (
       SELECT
-        -- Base commission
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Company Commission' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE name = 'company_commission' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%commission%' ORDER BY deduction_type_id LIMIT 1),
           20.00
         ) AS company_commission_pct,
-
-        -- Rider fee
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Rider Fee' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE name = 'rider_fee' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%rider%fee%' ORDER BY deduction_type_id LIMIT 1),
           3.00
         ) AS rider_fee_pct,
-
-        -- Driver deduction
         COALESCE(
-          (SELECT default_pct FROM deduction_type WHERE name = 'Driver Deduction' LIMIT 1),
           (SELECT default_pct FROM deduction_type WHERE name = 'driver_deduction' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%driver%deduction%' ORDER BY deduction_type_id LIMIT 1),
           5.00
         ) AS driver_deduction_pct,
-
-        -- Tax
         COALESCE(
           (SELECT default_pct FROM deduction_type WHERE name = 'Tax' LIMIT 1),
-          (SELECT default_pct FROM deduction_type WHERE lower(name) LIKE '%tax%' ORDER BY deduction_type_id LIMIT 1),
           8.25
         ) AS tax_pct
     ),
@@ -95,7 +86,6 @@ export async function POST(req: Request) {
     applied AS (
       SELECT
         r.rate_cents_per_mile_applied,
-        -- apply hot area commission discount
         GREATEST(0, LEAST(100, d.company_commission_pct - ds.avg_discount)) AS company_commission_pct_applied,
         d.rider_fee_pct    AS rider_fee_pct_applied,
         d.driver_deduction_pct AS driver_deduction_pct_applied,
@@ -118,7 +108,6 @@ export async function POST(req: Request) {
       SELECT
         p.*,
         ROUND(p.fare_base_cents * p.rider_fee_pct_applied / 100.0) AS rider_fee_cents,
-        -- tax on (base + rider_fee)
         ROUND( (p.fare_base_cents + ROUND(p.fare_base_cents * p.rider_fee_pct_applied / 100.0))
               * p.tax_pct_applied / 100.0) AS tax_cents
       FROM priced p
@@ -182,9 +171,9 @@ export async function POST(req: Request) {
 
     await pool.query(
       `INSERT INTO payment (ride_id, method, amount_total_cents, status, paid_at)
-       VALUES ($1, 'card', $2, 'authorized', NOW())
+       VALUES ($1, $2, $3, 'authorized', NOW())
        ON CONFLICT (ride_id, method) DO NOTHING`,
-      [ride_id, total_cents]
+      [ride_id, payMethod, total_cents]
     )
 
     return NextResponse.json({ ok: true, ride_id, total_cents })

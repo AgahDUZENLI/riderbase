@@ -180,13 +180,6 @@ export default function CompanyDashboard() {
           className={`px-3 py-1 rounded-full border text-sm ${tab==='settings' ? 'bg-white' : 'bg-gray-100 hover:bg-white'}`}>
           Settings
         </button>
-        <div className="ml-auto">
-          <select value={range} onChange={e=>setRange(e.target.value as any)} className="rounded-md border px-3 py-1 text-sm">
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="all">All time</option>
-          </select>
-        </div>
       </div>
 
       {tab==='overview' && (

@@ -31,10 +31,10 @@ export async function POST(req: Request) {
   const cfg = (await req.json()) as DbConfig
   const pool = makePool(cfg)
   try {
-    // 1) simple ping
+
     await pool.query('select 1')
 
-    // 2) schema + seed
+    //schema + seed
     await runSQL(pool, 'schema.sql')
     await runSQL(pool, 'seed.sql')
 

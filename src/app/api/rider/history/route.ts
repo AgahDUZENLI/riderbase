@@ -35,12 +35,14 @@ export async function POST(req: Request) {
       d.name   AS driver_name,
       r.distance_miles,
       r.fare_total_cents,
-      r.driver_payout_cents
+      r.driver_payout_cents,
+      p.method AS payment_method
     FROM ride r
     JOIN category cat ON cat.category_id = r.category_id
     JOIN location lo  ON lo.location_id  = r.origin_location_id
     JOIN location ld  ON ld.location_id  = r.dest_location_id
     JOIN driver   d   ON d.driver_id     = r.driver_id
+    LEFT JOIN payment p ON p.ride_id = r.ride_id
     WHERE r.rider_id = $1
     ORDER BY r.requested_at DESC
     LIMIT $2;

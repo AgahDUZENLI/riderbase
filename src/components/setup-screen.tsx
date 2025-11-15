@@ -16,8 +16,8 @@ export default function SetupScreen() {
     host: '127.0.0.1',
     port: '5432',
     database: 'cosc3380',
-    user: '',
-    password: '',
+    user: 'dbs006',
+    password: 'wrMtSyoVp3xn',
   })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')

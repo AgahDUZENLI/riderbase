@@ -9,6 +9,8 @@ type Rider = { rider_id: number; name: string; email: string }
 type Loc   = { location_id: number; name: string; is_hot_area: boolean }
 type Cat   = { category_id: number; name: string; rate_cents_per_mile: number }
 
+type PaymentMethod = 'card' | 'wallet'
+
 type Quote = {
   distance_miles: number
   hot_area: boolean
@@ -48,6 +50,7 @@ type RideRow = {
   distance_miles: number | null
   fare_total_cents: number
   status: RideStatus
+  payment_method?: string 
 }
 
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
@@ -71,6 +74,9 @@ export default function RiderSide() {
   const [originId, setOriginId] = useState<number | ''>('')
   const [destId, setDestId] = useState<number | ''>('')
   const [catId, setCatId] = useState<number | ''>('')
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
+
 
   const [quote, setQuote] = useState<Quote | null>(null)
   const [nearest, setNearest] = useState<NearestDriver | null>(null)
@@ -97,6 +103,7 @@ export default function RiderSide() {
           origin_location_id: Number(originId),
           dest_location_id: Number(destId),
           category_id: Number(catId),
+          method: paymentMethod,
         }),
       })
       const data = await res.json()
@@ -154,6 +161,7 @@ export default function RiderSide() {
           origin_location_id: Number(originId),
           dest_location_id: Number(destId),
           category_id: Number(catId),
+          method: paymentMethod,
         }),
       })
       const data = await res.json()
@@ -214,7 +222,6 @@ useEffect(() => {
     }
   }
 
-  // NEW: auto-load history when rider changes
   useEffect(() => { loadHistory().catch(()=>{}) }, [riderId, cfg]) // eslint-disable-line
 
   return (
@@ -259,6 +266,31 @@ useEffect(() => {
                   {c.name} (${(c.rate_cents_per_mile/100).toFixed(2)}/mi)
                 </option>)}
               </select>
+            </Labeled>
+
+            <Labeled label="Payment method">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={
+                    `flex-1 rounded-md border px-3 py-2 text-sm ` +
+                    (paymentMethod === 'card' ? 'bg-black text-white' : 'bg-white text-gray-700')
+                  }
+                >
+                  Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('wallet')}
+                  className={
+                    `flex-1 rounded-md border px-3 py-2 text-sm ` +
+                    (paymentMethod === 'wallet' ? 'bg-black text-white' : 'bg:white text-gray-700')
+                  }
+                >
+                  Wallet
+                </button>
+              </div>
             </Labeled>
 
             {quote && (
@@ -374,6 +406,7 @@ useEffect(() => {
                   <th className="py-2 pr-3">Driver</th>
                   <th className="py-2 pr-3">Miles</th>
                   <th className="py-2 pr-3">Total</th>
+                  <th className="py-2 pr-3">Pay</th>
                   <th className="py-2">Status</th>
                 </tr>
               </thead>
@@ -388,6 +421,7 @@ useEffect(() => {
                     <td className="py-2 pr-3">{r.driver_name}</td>
                     <td className="py-2 pr-3">{milesFmt(r.distance_miles)}</td>
                     <td className="py-2 pr-3">${dollars(r.fare_total_cents)}</td>
+                    <td className="py-2 pr-3">{r.payment_method ?? '—'}</td>
                     <td className="py-2">
                       <span className="rounded-full px-2 py-0.5 text-xs border">{r.status}</span>
                     </td>

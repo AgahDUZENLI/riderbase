@@ -11,7 +11,6 @@ type View = 'setup' | 'rider' | 'driver' | 'company'
 export default function HomePage() {
   const [view, setView] = useState<View>('setup')
 
-  // Auto-switch to Rider if a config is already present
   useEffect(() => {
     try {
       const raw = localStorage.getItem('rb.db.config')
@@ -66,8 +65,6 @@ export default function HomePage() {
             Company
           </button>
         </div>
-
-        {/* --- Page Content --- */}
         {view === 'setup' && <SetupScreen />}
         {view === 'rider' && <RiderSide />}
         {view === 'driver' && <DriverDashboard />}
