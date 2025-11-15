@@ -89,33 +89,47 @@ export default function DriverDashboard() {
       .catch(e => setMsg(`❌ ${e.message}`))
   }, [])
 
-  // helper to refresh everything for a driver
   async function refreshAll(selectedId: number) {
-    if (!cfg) return
+  if (!cfg) return
 
-    // glance
-    const meta = await fetch('/api/driver/meta', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ cfg, driver_id: selectedId }),
-    }).then(r => r.json()).catch(() => null)
+  // glance
+  const meta = await fetch('/api/driver/meta', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cfg, driver_id: selectedId }),
+  }).then(r => r.json()).catch(() => null)
 
-    // queue
-    const q = await fetch('/api/driver/queue', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ cfg, driver_id: selectedId }),
-    }).then(r => r.json()).catch(() => null)
-    setRide(q?.ride ?? null)
+  if (meta && !meta.error && meta.glance) {
+    setCurrentArea(meta.glance.current_area || '')
+    setEarnToday(Number(meta.glance.earnings_today_cents || 0))
+    setRidesDone(Number(meta.glance.rides_completed_today || 0))
 
-    // history
-    const hist = await fetch('/api/driver/history', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ cfg, driver_id: selectedId }),
-    }).then(r => r.json()).catch(() => null)
-    setHistory(hist?.rides ?? [])
+    if (typeof meta.glance.is_online === 'boolean') {
+      setIsOnline(meta.glance.is_online)
+      setDrivers(ds =>
+        ds.map(d =>
+          d.driver_id === selectedId ? { ...d, is_online: meta.glance.is_online } : d
+        )
+      )
+    }
   }
+
+  // queue
+  const q = await fetch('/api/driver/queue', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cfg, driver_id: selectedId }),
+  }).then(r => r.json()).catch(() => null)
+  setRide(q?.ride ?? null)
+
+  // history
+  const hist = await fetch('/api/driver/history', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cfg, driver_id: selectedId }),
+  }).then(r => r.json()).catch(() => null)
+  setHistory(hist?.rides ?? [])
+}
 
   // whenever driver changes, refresh
   useEffect(() => {

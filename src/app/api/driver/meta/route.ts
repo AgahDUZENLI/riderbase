@@ -32,11 +32,10 @@ area AS (
 today AS (
   SELECT
     COALESCE(SUM(driver_payout_cents),0) AS cents,
-    COUNT(*) FILTER (WHERE status='completed') AS rides_done
+    COUNT(*) FILTER (WHERE status='accepted') AS rides_done
   FROM ride
   WHERE driver_id = $1
     AND status IN ('accepted','ongoing','completed')
-    AND start_time::date = CURRENT_DATE  
 )
 SELECT (SELECT name FROM area) AS current_area,
        (SELECT cents FROM today) AS earnings_today_cents,
