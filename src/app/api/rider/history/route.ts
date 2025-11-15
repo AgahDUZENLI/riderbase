@@ -1,4 +1,3 @@
-// src/app/api/rider/history/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 

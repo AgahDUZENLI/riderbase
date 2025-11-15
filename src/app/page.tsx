@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import SetupScreen from '@/components/setup-screen'
 import RiderSide from '@/components/rider-side'

@@ -4,12 +4,7 @@ type Cfg = { host:string; port:string; database:string; user:string; password:st
 
 export async function POST(req: Request) {
   const { cfg, location_id, is_hot_area, commission_discount_pct } =
-    await req.json() as {
-      cfg: Cfg
-      location_id: number
-      is_hot_area: boolean
-      commission_discount_pct: number
-    }
+    await req.json() as { cfg: Cfg, location_id:number, is_hot_area:boolean, commission_discount_pct:number }
 
   if (!cfg || !location_id || typeof is_hot_area !== 'boolean') {
     return NextResponse.json({ error: 'Missing or invalid params' }, { status: 400 })
@@ -43,33 +38,32 @@ export async function POST(req: Request) {
       u.name,
       u.is_hot_area,
       u.commission_discount_pct,
-      GREATEST(0, LEAST(100, b.base_commission - u.commission_discount_pct))::numeric(6,2)
-        AS eff_commission_pct
+      GREATEST(0, LEAST(100, b.base_commission - u.commission_discount_pct))::numeric(6,2) AS eff_commission_pct
     FROM updated u
     CROSS JOIN base b;
   `
 
+  let client
   try {
-    const client = await pool.connect()
-    try {
-      await client.query('BEGIN')
+    client = await pool.connect()
+    await client.query('BEGIN')
 
-      const { rows } = await client.query(sql, [location_id, is_hot_area, disc])
+    const { rows } = await client.query(sql, [location_id, is_hot_area, disc])
 
-      if (!rows.length) {
-        await client.query('ROLLBACK').catch(() => {})
-        return NextResponse.json({ error: 'Location not found' }, { status: 404 })
-      }
-
-      await client.query('COMMIT')
-      return NextResponse.json({ ok: true, row: rows[0] })
-    } catch (e:any) {
-      await client.query('ROLLBACK').catch(() => {})
-      return NextResponse.json({ error: e.message }, { status: 500 })
-    } finally {
-      client.release()
+    if (!rows.length) {
+      await client.query('ROLLBACK')
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
     }
+
+    await client.query('COMMIT')
+    return NextResponse.json({ ok:true, row: rows[0] })
+  } catch (e:any) {
+    if (client) {
+      await client.query('ROLLBACK').catch(()=>{})
+    }
+    return NextResponse.json({ error: e.message }, { status: 500 })
   } finally {
-    await pool.end().catch(() => {})
+    if (client) client.release()
+    await pool.end().catch(()=>{})
   }
 }

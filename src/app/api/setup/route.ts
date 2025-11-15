@@ -1,4 +1,3 @@
-// src/app/api/setup/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import fs from 'node:fs/promises'

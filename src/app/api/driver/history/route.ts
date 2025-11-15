@@ -1,4 +1,3 @@
-// src/app/api/driver/history/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 
