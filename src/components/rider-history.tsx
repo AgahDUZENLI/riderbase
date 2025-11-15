@@ -83,7 +83,7 @@ export default function RiderHistory() {
   }
 
   // auto-load when rider changes
-  useEffect(() => { loadHistory().catch(()=>{}) }, [canLoad]) // eslint-disable-line
+  useEffect(() => { loadHistory().catch(()=>{}) }, [canLoad])
 
   return (
     <div className="rounded-2xl border p-6">
