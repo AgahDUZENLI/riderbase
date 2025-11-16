@@ -96,7 +96,7 @@ export default function CompanyDashboard() {
     }
   }, [cfg, tab])
 
-  // settings (deduction types only)
+  // settings
   useEffect(() => {
     if (!cfg || tab !== 'settings') return
     fetch('/api/company/settings', {
