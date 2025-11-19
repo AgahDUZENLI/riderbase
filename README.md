@@ -175,7 +175,6 @@ All SQL logic for the project is consolidated into:
 
 This file contains every ACID-safe transaction and all read-only query blocks used by the app.
 
----
 
 ### 5.1 Transaction Blocks (ACID-Safe)
 
@@ -187,8 +186,6 @@ This file contains every ACID-safe transaction and all read-only query blocks us
 
 Used in: `/api/rides/create`
 
----
-
 **Transaction 2 — Driver Accepts Ride**  
 - Locks ride (`SELECT FOR UPDATE`)  
 - Wallet debit (if applicable)  
@@ -197,41 +194,28 @@ Used in: `/api/rides/create`
 
 Used in: `/api/driver/accept`
 
----
-
 **Transaction 3 — Admin Reset**  
 - Deletes all rides  
 - Resets all bank accounts  
 
 Used in: `/api/admin/truncate` (ride)
 
----
 
 **Transaction 4 — Clear Payments**  
 Used in: `/api/admin/truncate` (payment)
-
----
 
 **Transaction 5 — Update Hot-Area / Commission**  
 Recomputes effective commission.  
 Used in: `/api/location/hot-area`
 
----
-
 **Transaction 6 — Upsert Deduction Types**  
 Used in: `/api/deductions`
-
----
 
 **Transaction 7 — Driver Online/Offline**  
 Used in: `/api/driver/availability`
 
----
-
 **Transaction 8 — Driver Rejects Ride**  
 Used in: `/api/driver/reject`
-
----
 
 ## 5.2 Query Blocks
 
