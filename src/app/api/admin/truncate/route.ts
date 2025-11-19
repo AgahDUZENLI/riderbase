@@ -1,4 +1,3 @@
-// app/api/admin/truncate/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 
@@ -28,16 +27,10 @@ export async function POST(req: Request) {
     await client.query('BEGIN')
 
     if (table === 'ride') {
-      // -------------------------------
-      // 1) Delete rides (payments delete via cascade)
-      // -------------------------------
       await client.query(`DELETE FROM ride;`)
 
-      // -------------------------------
-      // 2) Reset bank balances
-      // -------------------------------
 
-      // Riders: reset to $500
+      // Reset bank balances
       await client.query(`
         UPDATE bank_account
         SET balance_cents = 50000
@@ -64,9 +57,6 @@ export async function POST(req: Request) {
       })
     }
 
-    // -------------------------------
-    // Only payments truncated
-    // -------------------------------
     if (table === 'payment') {
       await client.query(`DELETE FROM payment;`)
       await client.query('COMMIT')

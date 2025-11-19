@@ -1,4 +1,3 @@
-// app/api/admin/simulate/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 
