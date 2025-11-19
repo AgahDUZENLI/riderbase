@@ -1,284 +1,372 @@
-RiderBase – Database Systems Project (COSC 3380)
-Team:006 - Fall 2025
+# RiderBase – Database Systems Project  
+**Team 006 – COSC 3380 (Fall 2025)**
 
+---
 
-1. Project Overview
+## 1. Project Overview
 
-RiderBase is a simplified ride-sharing platform (similar to Uber/Lyft) built for the COSC 3380 database project.
-The goal is to demonstrate:
-	•   Top–down database design
-	•   Normalization up to BCNF
-	•   Concurrent safe SQL
-	•   Simulation of real operations
-	•   Interactive web app using JavaScript + PostgreSQL
+RiderBase is a simplified ride-sharing platform designed to demonstrate complete database system development, including:
 
-The system supports the three main actors:
-	•   Riders – request rides, pay with card or wallet
-	•   Drivers – accept rides and receive payouts
-	•   Company – earns commissions, fees, and taxes
+- Top–down ER modeling  
+- Logical and physical schema design  
+- Normalization up to BCNF  
+- Concurrent and transaction-safe SQL  
+- Implementation of multi-table ACID transactions  
+- Realistic simulation of operational workflow  
+- JavaScript web application backed by PostgreSQL
 
-The web app allows:
-Setup connection to local PostgreSQL
-    •   Create tables and initialize lookup data
-    •   Request rides
-    •   Driver acceptance workflow
-    •   Update bank accounts
-    •   Ride history queries
-    •   Admin tools (truncate, browse tables, simulate rides)
+The system supports three actors:
 
-2. ER Modeling – Top-Down Design
+- Riders: request rides, pay via card or wallet balance  
+- Drivers: accept rides and receive payouts  
+- Company: receives commissions, fees, and taxes  
 
-    2.1 Draft Sketch (Brainstorm Phase)
-    ![Sketch](./images/db_sketch.png)
-        This sketch captures initial entity ideas:
-        •	Rider
-        •	Driver
-        •	Location
-        •	Category
-        •	Ride
-        •	Payment
+The web application includes tools for:
 
-    And early sequence logic:
-        1.	Rider orders a ride
-        2.	Driver accepts/rejects
-        3.	Company charges rider
-        4.	Company pays driver
-        
-    2.2 Early Structured Model (Phase 1)
-    ![Early UML](./images/db_phase1.png)
+- Database setup and initialization  
+- Creating rides and quotations  
+- Driver acceptance workflow  
+- Bank account updates  
+- Viewing ride history  
+- Administrative actions (browse tables, truncate data, simulate rides)
 
-    2.3 Final ERD (UML Notation)
-    (dbdiagram.io)
-    ![Final UML](./images/db_final.png)
-    Key Design Notes
-	•	ride links rider → driver → category → origin/dest location
-	•	payment is 1:1 with each ride
-	•	bank_account supports rider wallet, driver balance, and company account
-	•	fare_rule supports route-based pricing overrides
-	•	deduction_type makes commission rates configurable
+---
 
-3. Logical Model (Normalized Tables)
-    All major tables were normalized up to 3NF / BCNF:
+## 2. ER Modeling – Top-Down Design
 
-    ## Rider
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | rider_id (PK) | BIGSERIAL | Primary key |
-    | name | TEXT | Rider full name |
-    | email | TEXT | Unique rider email |
-    | created_at | TIMESTAMP | Defaults to NOW() |
+### 2.1 Draft Sketch (Brainstorming Phase)
+Initial hand sketches were used to identify the main entities:
+- Rider  
+- Driver  
+- Location  
+- Category  
+- Ride  
+- Payment  
 
-    **Normalization:** No repeating groups, no partial or transitive dependencies → **3NF**.
+This step also established the basic operational sequence:
+1. Rider requests a ride  
+2. Driver accepts or rejects the request  
+3. Company charges the rider  
+4. Company allocates payouts and commissions  
 
-    ---
+### 2.2 Early Structured Model (Phase 1)
+A preliminary UML diagram was created to refine attributes and relationships before normalization.
 
-    ## Driver
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | driver_id (PK) | BIGSERIAL |
-    | name | TEXT |
-    | email | TEXT |
-    | is_online | BOOLEAN |
-    | last_seen_at | TIMESTAMP |
-    | current_latitude | NUMERIC |
-    | current_longitude | NUMERIC |
+### 2.3 Final ERD (UML Notation)
+The final schema was produced using dbdiagram.io and reflects full normalization, referential integrity, and operational flow.  
+Key modeling decisions:
 
-    **Normalization:** All attributes depend solely on driver_id → **3NF**.
+- `ride` links rider → driver → category → origin/dest locations  
+- `payment` is a 1:1 extension of each ride  
+- `bank_account` is unified for riders, drivers, and the company  
+- `fare_rule` supports route-specific price overrides  
+- `deduction_type` abstracts commission, tax, and fee percentages  
 
-    ---
+---
 
-    ## Location
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | location_id (PK) | BIGSERIAL |
-    | name | TEXT |
-    | latitude | NUMERIC |
-    | longitude | NUMERIC |
-    | is_hot_area | BOOLEAN |
-    | commission_discount_pct | NUMERIC |
+## 3. Logical Model (Normalized Tables)
 
-    **Normalization:** No derived fields, no multi-valued attributes → **BCNF**.
+All tables are normalized to **3NF or BCNF**.  
+Below is the final logical model.
 
-    ---
+### Rider
+| Column | Type | Notes |
+|--------|-------|-------|
+| rider_id (PK) | BIGSERIAL | Primary key |
+| name | TEXT | Full name |
+| email | TEXT | Unique |
+| created_at | TIMESTAMP | Default now() |
 
-    ## Category
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | category_id (PK) | SERIAL |
-    | name | TEXT |
-    | rate_cents_per_mile | INT |
+### Driver
+| Column | Type | Notes |
+|--------|-------|-------|
+| driver_id (PK) | BIGSERIAL |
+| name | TEXT |
+| email | TEXT |
+| is_online | BOOLEAN |
+| last_seen_at | TIMESTAMP |
+| current_latitude | NUMERIC |
+| current_longitude | NUMERIC |
 
-    ---
+### Location
+| Column | Type | Notes |
+|--------|-------|-------|
+| location_id (PK) | BIGSERIAL |
+| name | TEXT |
+| latitude | NUMERIC |
+| longitude | NUMERIC |
+| is_hot_area | BOOLEAN |
+| commission_discount_pct | NUMERIC |
 
-    ## Fare Rule
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | fare_rule_id (PK) | BIGSERIAL |
-    | category_id (FK) | INT → category.category_id |
-    | origin_location_id (FK) | INT → location.location_id |
-    | dest_location_id (FK) | INT → location.location_id |
-    | route_rate_cents_per_mile | INT |
+### Category
+| Column | Type |
+|--------|-------|
+| category_id (PK) | SERIAL |
+| name | TEXT |
+| rate_cents_per_mile | INT |
 
-    **Normalization:** Composite dependency replaced with surrogate key + unique constraints → **BCNF**.
+### Fare Rule
+| Column | Type | Notes |
+|--------|-------|-------|
+| fare_rule_id (PK) | BIGSERIAL |
+| category_id (FK) | INT |
+| origin_location_id (FK) | INT |
+| dest_location_id (FK) | INT |
+| route_rate_cents_per_mile | INT |
 
-    ---
+### Deduction Type
+| Column | Type |
+|--------|-------|
+| deduction_type_id (PK) | SERIAL |
+| name (UNIQUE) | TEXT |
+| default_pct | NUMERIC |
 
-    ## Deduction Type
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | deduction_type_id (PK) | SERIAL |
-    | name (UNIQUE) | TEXT | e.g., 'company_commission', 'tax', etc. |
-    | default_pct | NUMERIC |
+### Ride
+Extensive table containing:
+- Fare calculations  
+- Distance  
+- Percentage breakdowns  
+- Commission splits  
+- Full auditing of prices  
 
-    ---
+(Full list of columns included in original writeup.)
 
-    ## Ride
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | ride_id (PK) | BIGSERIAL |
-    | rider_id (FK) | BIGINT |
-    | driver_id (FK) | BIGINT |
-    | category_id (FK) | INT |
-    | origin_location_id (FK) | INT |
-    | dest_location_id (FK) | INT |
-    | requested_at | TIMESTAMP |
-    | start_time | TIMESTAMP |
-    | status | TEXT CHECK constraint |
-    | distance_miles | NUMERIC |
-    | fare_base_cents | INT |
-    | rider_fee_cents | INT |
-    | tax_cents | INT |
-    | fare_total_cents | INT |
-    | company_commission_cents | INT |
-    | driver_deduction_cents | INT |
-    | driver_payout_cents | INT |
-    | company_commission_pct_applied | NUMERIC |
-    | rider_fee_pct_applied | NUMERIC |
-    | driver_deduction_pct_applied | NUMERIC |
-    | tax_pct_applied | NUMERIC |
-    | rate_cents_per_mile_applied | INT |
+### Payment
+| Column | Type |
+|--------|-------|
+| payment_id (PK) | BIGSERIAL |
+| ride_id (FK) | BIGINT |
+| method | TEXT |
+| amount_total_cents | INT |
+| status | TEXT |
+| paid_at | TIMESTAMP |
 
-    **Normalization:** Every attribute depends on full key (ride_id) → **3NF**.
+### Bank Account
+| Column | Type |
+|--------|-------|
+| account_id (PK) | SERIAL |
+| owner_type | TEXT |
+| rider_id | BIGINT (nullable) |
+| driver_id | BIGINT (nullable) |
+| balance_cents | INT |
 
-    ---
+---
 
-    ## Payment
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | payment_id (PK) | BIGSERIAL |
-    | ride_id (FK) | BIGINT |
-    | method | TEXT ('card' or 'wallet') |
-    | amount_total_cents | INT |
-    | status | TEXT |
-    | paid_at | TIMESTAMP |
+## 4. Physical Model (SQL)
 
-    ---
+All schema DDL is stored in:
 
-    ## Bank Account
-    | Column | Type | Notes |
-    |--------|-------|-------|
-    | account_id (PK) | SERIAL |
-    | owner_type | TEXT ('rider', 'driver', 'company') |
-    | rider_id (nullable FK) | BIGINT |
-    | driver_id (nullable FK) | BIGINT |
-    | balance_cents | INT |
+src/db/schema.sql
 
-    **Normalization:** Entity-subtype structure; no transitive dependencies.
+Features include:
 
-4. Physical Model (SQL)
+- Referential integrity via foreign keys  
+- Check constraints on ride statuses  
+- Unique indexes on emails and deduction types  
+- ON CONFLICT upserts where appropriate  
 
-    All SQL DDL for transaction tables (ride, payment, bank_account) is included in dt/schema.sql.
+---
 
+## 5. Queries and Transactions
 
-5. Transactions
+All SQL logic for the project is consolidated into:
 
-    All critical modifications run inside ACID-safe transactions.
+**`src/db/sql_all.sql`**
 
-    Transaction 1 — Create Ride + Compute Fare + Insert Payment
+This file contains every ACID-safe transaction and all read-only query blocks used by the app.
 
-    Stored in:
-    transaction.sql
+---
 
-    Includes:
-        •	Haversine distance
-        •	Fare calculation (base, fees, tax)
-        •	Commission split
-        •	Insert ride
-        •	Insert payment
+### 5.1 Transaction Blocks (ACID-Safe)
 
-    Transaction 2 — Driver Accepts Ride
+**Transaction 1 — Rider Requests Ride**  
+- Computes distance + fare  
+- Applies deductions and hot-area discounts  
+- Inserts a new ride  
+- Inserts authorized payment  
 
-    Stored in:
-    transaction.sql
+Used in: `/api/rides/create`
 
-    Includes:
-        •	SELECT…FOR UPDATE
-        •	Wallet charge (if method = wallet)
-        •	Company credit (commission + fees)
-        •	Driver payout
-        •	Ride state update → “accepted”
+---
 
-    Transaction 3 — Admin Reset (Truncate + Wallet Reset)
+**Transaction 2 — Driver Accepts Ride**  
+- Locks ride (`SELECT FOR UPDATE`)  
+- Wallet debit (if applicable)  
+- Company + driver payouts  
+- Ride set to `accepted`  
 
-    Stored in:
-    transaction.sql
+Used in: `/api/driver/accept`
 
-    Wipes ride + payment and resets all balances.
+---
 
+**Transaction 3 — Admin Reset**  
+- Deletes all rides  
+- Resets all bank accounts  
 
-6. Web App (JavaScript)
+Used in: `/api/admin/truncate` (ride)
 
-    Frontend: Next.js + Tailwind
-    Backend: Next.js API routes + pg (PostgreSQL)
+---
 
-    Main Screens:
-        •	Setup Screen – save DB credentials locally
-        •	Rider Screen – request rides + view history
-        •	Driver Screen – accept rides
-        •	Company Screen – revenue + payouts overview
-        •	Admin Screen – browse tables, truncate, simulate 50 rides
+**Transaction 4 — Clear Payments**  
+Used in: `/api/admin/truncate` (payment)
 
-7. Simulation Feature
-    We implemented:
-    •   Simulate 50 Rides
+---
 
-    Random riders, drivers, categories, and locations.
-    Runs Transaction 1 + 2 repeatedly.
-    Wallet limits prevent invalid debits.
+**Transaction 5 — Update Hot-Area / Commission**  
+Recomputes effective commission.  
+Used in: `/api/location/hot-area`
 
-8. Query Features
-    Stored in query.sql, including:
-        •	Rider ride history (JOIN ride/category/location/payment)
-        •	Driver earnings summary (GROUP BY)
-        •	Company revenue report
-        •	Bank account balances
-        •	Active ride statuses
+---
 
-9. How to Run Locally
+**Transaction 6 — Upsert Deduction Types**  
+Used in: `/api/deductions`
 
-    1. Install PostgreSQL
+---
 
-    Use port 5432 and create database:
-     createdb cosc3380
+**Transaction 7 — Driver Online/Offline**  
+Used in: `/api/driver/availability`
 
-    2. Clone Repo
-        git clone <your repo>
-        cd riderbase
+---
 
-    3. Install dependencies
-        npm install
+**Transaction 8 — Driver Rejects Ride**  
+Used in: `/api/driver/reject`
 
-    4. Run Dev Server
-        npm run dev
+---
 
-    5. Open App
-        Navigate to:
-        🔗 http://localhost:3000
+## 5.2 Query Blocks
 
-    6. Setup DB
-        Enter:
-            •	host: 127.0.0.1
-            •	port: 5432
-            •	db: cosc3380
-            •	user: 
-            •	password: ******
+All queries stored in:  
+**`src/db/sql_all.sql`**
+
+**Admin Browse**  
+Lists rows from any table.
+
+**Location Commission Summary**  
+Used in: `/api/location/hot-area/list`
+
+**Company Stats**  
+Used in: `/api/company/stats`
+
+**Company Insights**  
+Top routes, drivers, riders.
+
+**Driver History**  
+Used in: `/api/driver/history`
+
+**Driver Glance**  
+Wallet, earnings today, area.
+
+**Pending Ride (Driver)**  
+Used in: `/api/driver/pending`
+
+**Metadata (riders, locations, categories)**  
+Used in: `/api/meta`
+
+**Nearest Online Driver**  
+Used in: `/api/driver/nearest-driver`
+
+**Fare Quote (No Write)**  
+Used in: `/api/quote`
+
+**Rider History + Wallet**  
+Used in: `/api/rider/history`
+
+---
+
+## 6. Web Application (JavaScript)
+
+Frameworks and technologies:
+
+- Next.js (App Router)
+- React + Tailwind CSS  
+- PostgreSQL via `pg` Node.js client  
+
+Major screens:
+
+- Database setup page  
+- Rider interface (request ride, history)  
+- Driver interface (real-time request display and acceptance)  
+- Company dashboard (revenue and payout reports)  
+- Admin dashboard (browse tables, truncate tables, simulate rides)  
+
+---
+
+## 7. Simulation Feature
+
+Simulation automatically generates a batch of randomized rides.  
+Each simulated ride runs:
+
+1. Transaction 1 (ride creation)  
+2. Transaction 2 (driver acceptance)  
+
+Randomized input includes:
+
+- Rider  
+- Driver  
+- Category  
+- Origin & destination  
+- Payment method (wallet/card)  
+
+Wallet balances can cause failures, which are reported.
+
+---
+
+## 8. How to Run the Project
+
+### Step 1 — Install PostgreSQL  
+Create a database named:
+
+createdb cosc3380
+
+### Step 2 — Clone Repository  
+
+git clone 
+cd riderbase
+
+### Step 3 — Install Dependencies  
+
+npm install
+
+### Step 4 — Run Dev Server  
+
+npm run dev
+
+### Step 5 — Access Application  
+Open:
+
+http://localhost:3000
+
+### Step 6 — Enter DB Credentials  
+Use:
+
+- host: 127.0.0.1  
+- port: 5432 (or your local Postgres.app port)  
+- database: cosc3380  
+- user: your OS user  
+- password: your Postgres password  
+
+After entering credentials, press **Initialize Database** to run schema + seed scripts.
+
+---
+
+## 9. File Structure
+
+Example structure:
+
+src/
+app/
+api/
+rides/
+drivers/
+company/
+admin/
+db/
+schema.sql
+seed.sql
+transaction.sql
+query.sql
+public/
+images/
+README.md
+
+---
