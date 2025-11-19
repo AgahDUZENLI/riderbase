@@ -4,8 +4,9 @@ import SetupScreen from '@/components/setup-screen'
 import RiderSide from '@/components/rider-side'
 import DriverDashboard from '@/components/driver-side'
 import CompanyDashboard from '@/components/company-dashboard'
+import AdminScreen from '@/components/admin-screen'
 
-type View = 'setup' | 'rider' | 'driver' | 'company'
+type View = 'setup' | 'rider' | 'driver' | 'company' | 'admin'
 
 export default function HomePage() {
   const [view, setView] = useState<View>('setup')
@@ -58,16 +59,26 @@ export default function HomePage() {
           <button
             onClick={() => setView('company')}
             className={`px-3 py-1 rounded-full border text-sm ${
-              view === 'driver' ? 'bg-white' : 'bg-gray-100 hover:bg-white'
+              view === 'company' ? 'bg-white' : 'bg-gray-100 hover:bg-white'
             }`}
           >
             Company
+          </button>
+
+            <button
+            onClick={() => setView('admin')}
+            className={`px-3 py-1 rounded-full border text-sm ${
+              view === 'admin' ? 'bg-white' : 'bg-gray-100 hover:bg-white'
+            }`}
+          >
+            Admin
           </button>
         </div>
         {view === 'setup' && <SetupScreen />}
         {view === 'rider' && <RiderSide />}
         {view === 'driver' && <DriverDashboard />}
         {view === 'company' && <CompanyDashboard />}
+        {view === 'admin' && <AdminScreen />} 
 
       </div>
     </main>

@@ -12,7 +12,6 @@ type RideRow = {
   ride_id: number
   requested_at: string
   start_time: string | null
-  end_time: string | null
   status: RideStatus
   category_name: string
   origin_name: string

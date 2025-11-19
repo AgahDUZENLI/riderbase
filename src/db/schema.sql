@@ -54,7 +54,6 @@ CREATE TABLE IF NOT EXISTS ride (
 
   requested_at        TIMESTAMP NOT NULL,
   start_time          TIMESTAMP,
-  end_time            TIMESTAMP,
   distance_miles      NUMERIC(8,2) NOT NULL CHECK (distance_miles >= 0),
 
   -- Rider-side pricing

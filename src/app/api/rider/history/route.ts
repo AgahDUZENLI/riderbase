@@ -26,7 +26,6 @@ export async function POST(req: Request) {
       r.ride_id,
       r.requested_at,
       r.start_time,
-      r.end_time,
       r.status,
       c.name          AS category_name,
       lo.name         AS origin_name,
