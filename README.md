@@ -278,10 +278,6 @@ Major screens:
 ## 7. Simulation Feature
 
 Simulation automatically generates a batch of randomized rides.  
-Each simulated ride runs:
-
-1. Transaction 1 (ride creation)  
-2. Transaction 2 (driver acceptance)  
 
 Randomized input includes:
 
@@ -290,8 +286,6 @@ Randomized input includes:
 - Category  
 - Origin & destination  
 - Payment method (wallet/card)  
-
-Wallet balances can cause failures, which are reported.
 
 ---
 
