@@ -99,7 +99,6 @@ export async function POST(req: Request) {
       [companyCredit]
     )
 
-    // Driver gets payout
     await client.query(
       `
       UPDATE bank_account
