@@ -7,21 +7,29 @@ export async function POST(req: Request) {
   const { cfg, driver_id } = await req.json() as { cfg: Db, driver_id?: number }
 
   const pool = new Pool({
-    host: cfg.host, port: Number(cfg.port), database: cfg.database,
-    user: cfg.user, password: cfg.password,
-    max: 4, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 5_000,
+    host: cfg.host,
+    port: Number(cfg.port),
+    database: cfg.database,
+    user: cfg.user,
+    password: cfg.password,
+    max: 4,
+    idleTimeoutMillis: 10_000,
   })
 
   try {
     const drivers = (await pool.query(
       `SELECT driver_id, name, email, is_online, current_latitude, current_longitude
-       FROM driver ORDER BY name`
+       FROM driver
+       ORDER BY name`
     )).rows
     let glance: any = null
+
     if (driver_id) {
       const gsql = `
 WITH me AS (
-  SELECT current_latitude AS lat, current_longitude AS lng FROM driver WHERE driver_id = $1
+  SELECT current_latitude AS lat, current_longitude AS lng, is_online
+  FROM driver
+  WHERE driver_id = $1
 ),
 area AS (
   SELECT l.name
@@ -30,16 +38,25 @@ area AS (
   LIMIT 1
 ),
 today AS (
+  -- still useful for rides count
   SELECT
     COALESCE(SUM(driver_payout_cents),0) AS cents,
-    COUNT(*) FILTER (WHERE status='accepted') AS rides_done
+    COUNT(*) FILTER (WHERE status IN ('accepted','ongoing','completed')) AS rides_done
   FROM ride
   WHERE driver_id = $1
-    AND status IN ('accepted','ongoing','completed')
+    AND DATE(requested_at) = CURRENT_DATE
+),
+wallet AS (
+  SELECT balance_cents
+  FROM bank_account
+  WHERE owner_type = 'driver' AND driver_id = $1
 )
-SELECT (SELECT name FROM area) AS current_area,
-       (SELECT cents FROM today) AS earnings_today_cents,
-       (SELECT rides_done FROM today) AS rides_completed_today;
+SELECT
+  (SELECT name FROM area) AS current_area,
+  COALESCE((SELECT balance_cents FROM wallet), 0) AS wallet_cents,
+  (SELECT cents      FROM today) AS earnings_today_cents,
+  (SELECT rides_done FROM today) AS rides_completed_today,
+  (SELECT is_online  FROM me)    AS is_online;
       `
       const r = await pool.query(gsql, [driver_id])
       glance = r.rows[0] || null
@@ -49,6 +66,6 @@ SELECT (SELECT name FROM area) AS current_area,
   } catch (e:any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   } finally {
-    await pool.end().catch(()=>{})
+    await pool.end().catch(() => {})
   }
 }

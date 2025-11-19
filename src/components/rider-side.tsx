@@ -69,6 +69,7 @@ export default function RiderSide() {
   const [cats, setCats] = useState<Cat[]>([])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  
 
   const [riderId, setRiderId] = useState<number | ''>('')
   const [originId, setOriginId] = useState<number | ''>('')
@@ -83,6 +84,8 @@ export default function RiderSide() {
 
   const [history, setHistory] = useState<RideRow[]>([])
   const [histBusy, setHistBusy] = useState(false)
+
+  const [walletCents, setWalletCents] = useState<number>(0)
 
   const nf2 = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const money = (cents?: number) => ((cents ?? 0) / 100)
@@ -168,7 +171,6 @@ export default function RiderSide() {
       if (!res.ok) throw new Error(data.error || 'Booking failed')
       setMsg(`✅ Ride #${data.ride_id} created. Total $${dollars(data.total_cents)}`)
       setQuote(null)
-      // NEW: refresh history immediately after booking
       await loadHistory()
     } catch (e:any) {
       setMsg(`❌ ${e.message}`)
@@ -177,8 +179,7 @@ export default function RiderSide() {
     }
   }
 
-// in RiderSide useEffect that fetches nearest
-useEffect(() => {
+  useEffect(() => {
   if (!cfg || !originId) { setNearest(null); return }
 
   let alive = true
@@ -215,6 +216,7 @@ useEffect(() => {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load history')
       setHistory(data.rides || [])
+      setWalletCents(Number(data.wallet_cents ?? 0))
     } catch (e:any) {
       setMsg(`❌ ${e.message}`)
     } finally {
@@ -222,7 +224,7 @@ useEffect(() => {
     }
   }
 
-  useEffect(() => { loadHistory().catch(()=>{}) }, [riderId, cfg]) // eslint-disable-line
+  useEffect(() => { loadHistory().catch(()=>{}) }, [riderId, cfg])
 
   return (
     <>
@@ -234,11 +236,23 @@ useEffect(() => {
 
           <div className="mt-4 space-y-4">
             <Labeled label="Rider account">
-              <select className="w-full rounded-md border px-3 py-2"
-                value={riderId} onChange={e => setRiderId(Number(e.target.value))}>
-                {riders.map(r => <option key={r.rider_id} value={r.rider_id}>{r.name}</option>)}
-              </select>
-            </Labeled>
+                <>
+                  <select
+                    className="w-full rounded-md border px-3 py-2"
+                    value={riderId}
+                    onChange={e => setRiderId(Number(e.target.value))}
+                  >
+                    {riders.map(r => (
+                      <option key={r.rider_id} value={r.rider_id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Wallet balance: <span className="font-semibold">${dollars(walletCents)}</span>
+                  </p>
+                </>
+              </Labeled>
 
             <Labeled label="Origin">
               <select className="w-full rounded-md border px-3 py-2"

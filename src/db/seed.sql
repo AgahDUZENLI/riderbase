@@ -125,3 +125,22 @@ SELECT 'Frank Operator', 'frank@example.com', 29.7448, -95.3925, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM driver WHERE email='frank@example.com');
 
 
+INSERT INTO bank_account (owner_type, rider_id, balance_cents)
+SELECT 'rider', r.rider_id, 50000
+FROM rider r
+WHERE NOT EXISTS (
+  SELECT 1 FROM bank_account b WHERE b.rider_id = r.rider_id
+);
+
+INSERT INTO bank_account (owner_type, driver_id, balance_cents)
+SELECT 'driver', d.driver_id, 0
+FROM driver d
+WHERE NOT EXISTS (
+  SELECT 1 FROM bank_account b WHERE b.driver_id = d.driver_id
+);
+
+INSERT INTO bank_account (owner_type, balance_cents)
+SELECT 'company', 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM bank_account b WHERE b.owner_type = 'company'
+);

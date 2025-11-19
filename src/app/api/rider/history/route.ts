@@ -50,7 +50,18 @@ export async function POST(req: Request) {
 
   try {
     const { rows } = await pool.query(sql, [rider_id, limit])
-    return NextResponse.json({ rides: rows })
+    const w = await pool.query(
+      `SELECT balance_cents
+         FROM bank_account
+        WHERE owner_type = 'rider'
+          AND rider_id   = $1
+        LIMIT 1`,
+      [rider_id]
+    )
+
+    const wallet_cents = w.rows.length ? Number(w.rows[0].balance_cents) : 0
+
+    return NextResponse.json({ rides: rows, wallet_cents })
   } catch (e:any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   } finally {

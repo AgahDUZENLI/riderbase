@@ -46,7 +46,7 @@ type RideRow = {
   category_name: string
   fare_total_cents: number
   driver_payout_cents: number
-  status: 'requested' | 'accepted' | 'ongoing' | 'completed' | 'canceled'
+  status: 'requested' | 'accepted' | 'canceled'
 }
 
 export default function DriverDashboard() {
@@ -99,20 +99,22 @@ export default function DriverDashboard() {
     body: JSON.stringify({ cfg, driver_id: selectedId }),
   }).then(r => r.json()).catch(() => null)
 
-  if (meta && !meta.error && meta.glance) {
-    setCurrentArea(meta.glance.current_area || '')
-    setEarnToday(Number(meta.glance.earnings_today_cents || 0))
-    setRidesDone(Number(meta.glance.rides_completed_today || 0))
+if (meta && !meta.error && meta.glance) {
+  setCurrentArea(meta.glance.current_area || '')
 
-    if (typeof meta.glance.is_online === 'boolean') {
-      setIsOnline(meta.glance.is_online)
-      setDrivers(ds =>
-        ds.map(d =>
-          d.driver_id === selectedId ? { ...d, is_online: meta.glance.is_online } : d
-        )
+  setEarnToday(Number(meta.glance.wallet_cents || 0))
+
+  setRidesDone(Number(meta.glance.rides_completed_today || 0))
+
+  if (typeof meta.glance.is_online === 'boolean') {
+    setIsOnline(meta.glance.is_online)
+    setDrivers(ds =>
+      ds.map(d =>
+        d.driver_id === selectedId ? { ...d, is_online: meta.glance.is_online } : d
       )
-    }
+    )
   }
+}
 
   // queue
   const q = await fetch('/api/driver/queue', {
@@ -131,13 +133,13 @@ export default function DriverDashboard() {
   setHistory(hist?.rides ?? [])
 }
 
-  // whenever driver changes, refresh
   useEffect(() => {
     if (!cfg || !driverId) return
     refreshAll(Number(driverId)).catch(()=>{})
-  }, [cfg, driverId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cfg, driverId]) 
 
   const canAccept = useMemo(() => !!(cfg && driverId && ride), [cfg, driverId, ride])
+  const canReject = canAccept
 
   async function onAccept() {
     if (!canAccept || !ride) return
@@ -159,7 +161,26 @@ export default function DriverDashboard() {
     }
   }
 
-  // read current is_online from DB
+    async function onReject() {
+    if (!canReject || !ride) return
+    try {
+      setBusy(true); setMsg('')
+      const res = await fetch('/api/driver/reject', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ cfg, driver_id: Number(driverId), ride_id: ride.ride_id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Reject failed')
+      setMsg('🚫 Ride rejected')
+      await refreshAll(Number(driverId))
+    } catch (e:any) {
+      setMsg(`❌ ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function fetchOnlineFromDb(currentDriverId: number) {
     if (!cfg) return
     try {
@@ -305,13 +326,22 @@ export default function DriverDashboard() {
               </div>
             </div>
 
-            <button
-              onClick={onAccept}
-              disabled={!canAccept || busy}
-              className="mt-5 w-full rounded-xl bg-black text-white py-2 text-sm font-medium disabled:opacity-50"
-            >
-              {busy ? 'Accepting…' : 'Accept Ride'}
-            </button>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={onAccept}
+                disabled={!canAccept || busy}
+                className="flex-1 rounded-xl bg-black text-white py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {busy ? 'Processing…' : 'Accept Ride'}
+              </button>
+              <button
+                onClick={onReject}
+                disabled={!canReject || busy}
+                className="flex-1 rounded-xl border border-red-500 text-red-600 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
           </div>
         )}
       </div>

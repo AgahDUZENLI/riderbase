@@ -182,7 +182,8 @@ export async function POST(req: Request) {
       f.rate_cents_per_mile_applied,
       'requested'
     FROM final f
-    RETURNING ride_id, fare_total_cents, driver_payout_cents;
+    RETURNING ride_id, fare_total_cents, driver_payout_cents,
+              company_commission_cents, rider_fee_cents, driver_deduction_cents;
   `
 
   let client
@@ -190,7 +191,6 @@ export async function POST(req: Request) {
     client = await pool.connect()
     await client.query('BEGIN')
 
-    // Insert ride
     const ins = await client.query(sql, [
       origin_location_id,
       dest_location_id,
@@ -208,13 +208,13 @@ export async function POST(req: Request) {
     const ride_id: number = Number(ride.ride_id)
     const total_cents: number = Number(ride.fare_total_cents)
 
-    //Insert payment
-    await client.query(
-      `INSERT INTO payment (ride_id, method, amount_total_cents, status, paid_at)
-       VALUES ($1, $2, $3, 'authorized', NOW())
-       ON CONFLICT (ride_id, method) DO NOTHING`,
-      [ride_id, payMethod, total_cents]
-    )
+  
+      await client.query(
+        `INSERT INTO payment (ride_id, method, amount_total_cents, status, paid_at)
+        VALUES ($1, $2, $3, 'authorized', NOW())
+        ON CONFLICT (ride_id, method) DO NOTHING`,
+        [ride_id, payMethod, total_cents]
+      )
 
     await client.query('COMMIT')
 

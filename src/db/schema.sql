@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS driver (
   driver_id BIGSERIAL PRIMARY KEY,
   name     VARCHAR(120) NOT NULL,
   email    VARCHAR(255) NOT NULL UNIQUE,
-  current_latitude  NUMERIC(9,6) NOT NULL DEFAULT 0.000000,  -- -90..90
-  current_longitude NUMERIC(9,6) NOT NULL DEFAULT 0.000000,  -- -180..180
+  current_latitude  NUMERIC(9,6) NOT NULL DEFAULT 0.000000,
+  current_longitude NUMERIC(9,6) NOT NULL DEFAULT 0.000000, 
   is_online  BOOLEAN   NOT NULL DEFAULT TRUE,
   last_seen_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS location (
   name                    VARCHAR(120) NOT NULL UNIQUE,
   is_hot_area             BOOLEAN NOT NULL DEFAULT FALSE,
   commission_discount_pct NUMERIC(5,2) NOT NULL DEFAULT 0.00,
-  latitude  NUMERIC(9,6) NOT NULL,    -- -90..90
-  longitude NUMERIC(9,6) NOT NULL,    -- -180..180
+  latitude  NUMERIC(9,6) NOT NULL,
+  longitude NUMERIC(9,6) NOT NULL, 
   CONSTRAINT location_discount_chk CHECK (commission_discount_pct BETWEEN 0 AND 100)
 );
 
@@ -107,4 +107,16 @@ CREATE TABLE IF NOT EXISTS deduction_type (
   name              VARCHAR(80) NOT NULL UNIQUE,   
   default_pct       NUMERIC(5,2) NOT NULL,
   CONSTRAINT deduction_type_pct_chk CHECK (default_pct BETWEEN 0 AND 100)
+);
+
+CREATE TABLE IF NOT EXISTS bank_account (
+  account_id    BIGSERIAL PRIMARY KEY,
+
+  owner_type    VARCHAR(16) NOT NULL
+    CHECK (owner_type IN ('rider','driver','company')),
+
+  rider_id      BIGINT REFERENCES rider(rider_id),
+  driver_id     BIGINT REFERENCES driver(driver_id),
+
+  balance_cents BIGINT NOT NULL CHECK (balance_cents >= 0)
 );
