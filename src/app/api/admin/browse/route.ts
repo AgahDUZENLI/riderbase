@@ -1,4 +1,3 @@
-// app/api/admin/browse/route.ts
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 
@@ -15,7 +14,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing cfg or table' }, { status: 400 })
   }
 
-  // only allow known tables to avoid SQL injection
   const allowed = [
     'rider',
     'driver',

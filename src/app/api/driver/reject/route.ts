@@ -24,7 +24,6 @@ export async function POST(req: Request) {
     client = await pool.connect()
     await client.query('BEGIN')
 
-    // Treat "rejected" as "canceled" in DB (fits your CHECK constraint)
     const upd = await client.query(
       `UPDATE ride
          SET status = 'canceled'

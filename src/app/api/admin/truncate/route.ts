@@ -30,21 +30,18 @@ export async function POST(req: Request) {
       await client.query(`DELETE FROM ride;`)
 
 
-      // Reset bank balances
       await client.query(`
         UPDATE bank_account
         SET balance_cents = 50000
         WHERE owner_type = 'rider';
       `)
 
-      // Drivers: reset to $0
       await client.query(`
         UPDATE bank_account
         SET balance_cents = 0
         WHERE owner_type = 'driver';
       `)
 
-      // Company: reset to $0
       await client.query(`
         UPDATE bank_account
         SET balance_cents = 0
