@@ -1,0 +1,300 @@
+\documentclass[12pt]{article}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{\textbf{RiderBase – Ride Sharing Database System}\\COSC 3380 – Database Systems\\Team 006}
+\author{Agah Duzenli  \and Liam Brooks \and Alexyz Garcia \and Daniel Espitia}
+\date{Fall 2025}
+
+\begin{document}
+\maketitle
+
+\section*{Demo Video}
+A full walkthrough of the RiderBase application, including ride creation, driver acceptance, company reports, and simulation mode, is available at the link below:
+
+\begin{center}
+\textbf{\underline{\href{https://www.youtube.com/watch?v=GJcbIuE-pto}{RiderBase Demo Video}}}
+\end{center}
+
+%-----------------------------------------------------------
+\section*{1. Introduction}
+
+RiderBase is a simplified ride sharing platform inspired by real systems such as Uber and Lyft. 
+The application models the interactions between riders, drivers, and the company, supporting the full workflow from requesting a ride to payment processing and reporting.
+
+This project demonstrates:
+\begin{itemize}
+    \item \textbf{Top down ER design}: sketch → refined model → final UML.
+    \item \textbf{Normalization}: all core tables are in 3NF/BCNF.
+    \item \textbf{ACID transactions}: ride creation, driver acceptance, wallet charges.
+    \item \textbf{Simulation engine}: random ride generation for stress testing.
+    \item \textbf{SQL centered backend}: nearly all logic implemented in SQL.
+    \item \textbf{Web integration}: Next.js frontend with PostgreSQL backend.
+\end{itemize}
+
+
+%-----------------------------------------------------------
+\section*{2. ER Modeling (Top Down)}
+
+\subsection*{2.1 Draft / Brainstorm ER (Sketch)}
+Figure~\ref{fig:sketch} shows the initial hand drawn sketch, capturing the basic workflow: riders request rides, drivers accept or reject, and payments flow through the system.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{db_sketch.jpg}
+\caption{Initial Draft ER Sketch}
+\label{fig:sketch}
+\end{figure}
+
+\subsection*{2.2 Preliminary ER (Phase 1)}
+The Phase 1 ERD (Figure~\ref{fig:phase1}) transitions the brainstorm sketch into a structured relational model. It introduced early money flow tables and clarified relationships among riders, drivers, rides, and payments.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{db_phase1.png}
+\caption{Preliminary ERD (Phase 1)}
+\label{fig:phase1}
+\end{figure}
+
+\subsection*{2.3 Final ERD (Normalized UML)}
+The final ERD (Figure~\ref{fig:finalerd}) includes normalized entities and relationships. Key improvements:
+\begin{itemize}
+    \item \textbf{bank\_account}: unified balance table.
+    \item \textbf{deduction\_type}: configurable percentages.
+    \item \textbf{fare\_rule}: route specific pricing.
+    \item Hot area logic embedded directly in \texttt{location}.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{db_final.png}
+\caption{Final Normalized ERD (UML)}
+\label{fig:finalerd}
+\end{figure}
+
+%-----------------------------------------------------------
+\section*{3. Logical Model \& Normalization}
+
+The final relational schema includes:
+\begin{itemize}
+    \item rider, driver, location, category
+    \item fare\_rule, deduction\_type
+    \item ride, payment, bank\_account
+\end{itemize}
+
+\subsection*{Example Normalization Arguments}
+\textbf{Rider:} Key = rider\_id. All attributes depend solely on the key. BCNF.
+
+\textbf{Location:} Key = location\_id. No transitive dependencies. BCNF.
+
+\textbf{Fare\_Rule:} Composite key (category, origin, dest). BCNF.
+
+\subsection*{Intentional Denormalization}
+The \texttt{ride} table stores precomputed monetary values (fare totals, deductions, payout) to improve performance and simplify reporting.
+
+%-----------------------------------------------------------
+\section*{4. Physical Model (SQL DDL)}
+
+DDL is located in \texttt{src/db/schema.sql}.  
+Example DDL:
+
+\subsection*{Ride Table}
+\begin{verbatim}
+CREATE TABLE ride (
+  ride_id BIGSERIAL PRIMARY KEY,
+  rider_id BIGINT REFERENCES rider(rider_id),
+  driver_id BIGINT REFERENCES driver(driver_id),
+  category_id INT REFERENCES category(category_id),
+  origin_location_id INT REFERENCES location(location_id),
+  dest_location_id INT REFERENCES location(location_id),
+  requested_at TIMESTAMP DEFAULT NOW(),
+  status VARCHAR(16) NOT NULL,
+  distance_miles NUMERIC(6,2),
+  fare_total_cents BIGINT,
+  driver_payout_cents BIGINT
+);
+\end{verbatim}
+
+\subsection*{Payment Table}
+\begin{verbatim}
+CREATE TABLE payment (
+  payment_id BIGSERIAL PRIMARY KEY,
+  ride_id BIGINT REFERENCES ride(ride_id),
+  method VARCHAR(16) NOT NULL,
+  amount_total_cents BIGINT NOT NULL,
+  paid_at TIMESTAMP DEFAULT NOW()
+);
+\end{verbatim}
+
+%-----------------------------------------------------------
+\section*{5. Transactions \& Queries}
+
+All SQL is consolidated in \texttt{src/db/sql\_all.sql}.
+
+\subsection*{Example Transaction (T1 – Rider Requests Ride)}
+
+\begin{verbatim}
+BEGIN;
+
+-- compute distance, pricing, deductions (CTEs omitted here)
+
+INSERT INTO ride (...columns...)
+SELECT
+  $4::bigint AS rider_id,
+  $5::bigint AS driver_id,
+  ...
+FROM final
+RETURNING ride_id, fare_total_cents;
+
+INSERT INTO payment (ride_id, method, amount_total_cents, status, paid_at)
+VALUES (:ride_id, :payment_method, :fare_total_cents, 'authorized', NOW());
+
+COMMIT;
+\end{verbatim}
+
+\subsection*{Example Query (Rider History)}
+
+\begin{verbatim}
+SELECT
+  r.ride_id,
+  r.requested_at,
+  lo.name AS origin_name,
+  ld.name AS dest_name,
+  c.name  AS category_name,
+  d.name  AS driver_name,
+  r.fare_total_cents,
+  COALESCE(p.method, NULL) AS payment_method
+FROM ride r
+JOIN location lo ON lo.location_id = r.origin_location_id
+JOIN location ld ON ld.location_id = r.dest_location_id
+JOIN category c  ON c.category_id  = r.category_id
+JOIN driver  d   ON d.driver_id    = r.driver_id
+LEFT JOIN payment p ON p.ride_id = r.ride_id
+WHERE r.rider_id = $1
+ORDER BY r.requested_at DESC
+LIMIT $2;
+\end{verbatim}
+
+\subsection*{Core Transactions}
+\begin{itemize}
+    \item \textbf{T1 – Rider Requests Ride}: fare calculation + insert.
+    \item \textbf{T2 – Driver Accepts Ride}: wallet deduction, payouts, status update.
+    \item \textbf{T3 – Admin Reset}: clears rides/payments and resets balances.
+    \item \textbf{T4 – Hot Area Update}: modify commission discounts.
+    \item \textbf{T5 – Driver Availability}: update online/offline state.
+    \item \textbf{T6 – Ride Rejection}: mark ride as canceled.
+\end{itemize}
+
+\subsection*{Major Queries}
+\begin{itemize}
+    \item Company revenue and payout summaries
+    \item Top routes, drivers, riders
+    \item Rider and driver histories
+    \item Wallet lookup
+    \item Nearest online driver calculation
+    \item Fare quote (read only)
+\end{itemize}
+
+%-----------------------------------------------------------
+\section*{6. Application Design \& GUI}
+
+\subsection*{Setup Screen}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.21.05.png}
+\caption{Setup Screen}
+\end{figure}
+
+\subsection*{Rider Screen}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.21.49.png}
+\caption{Rider Request \& History}
+\end{figure}
+
+\subsection*{Driver Screen}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.05.png}
+\caption{Driver Pending Ride View}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.17.png}
+\caption{Driver Dashboard}
+\end{figure}
+
+\subsection*{Company / Admin Screens}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.23.png}
+\caption{Company Reports}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.35.png}
+\caption{Hot Areas Management}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.41.png}
+\caption{Commission \& Deduction Settings}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Screenshot 2025-11-19 at 17.22.47.png}
+\caption{Admin Tools \& Simulation}
+\end{figure}
+
+%-----------------------------------------------------------
+\section*{7. Simulation \& Concurrency}
+
+The simulation engine generates random rides by repeatedly executing Transactions 1 and 2.  
+Concurrency was tested with multiple browser windows performing operations simultaneously.
+
+%-----------------------------------------------------------
+\section*{8. Testing \& Error Handling}
+
+\begin{itemize}
+    \item Wallet vs card payments
+    \item Hot area vs normal routes
+    \item Admin reset + simulation
+    \item Driver accept/reject
+\end{itemize}
+
+Error handling includes:
+\begin{itemize}
+    \item Wallet underflow
+    \item Wrong driver acceptance blocked
+    \item Invalid IDs prevented by FK constraints
+\end{itemize}
+
+
+\section*{9. Team Work \& Contributions}
+
+\begin{itemize}
+    \item \textbf{ERD \& Normalization}: Daniel Espitia, Alexyz Garcia
+    \item \textbf{Database Schema (DDL) \& SQL Transactions}: Daniel Espitia, Agah Duzenli, Liam Brooks
+    \item \textbf{Frontend Development (Next.js UI)}: Alexyz Garcia, Agah Duzenli
+    \item \textbf{Backend API Routes \& Integration}: Agah Duzenli, Liam Brooks
+    \item \textbf{Simulation, Debugging, Testing, Demo Video}: Liam Brooks, Alexyz Garcia
+\end{itemize}
+
+%-----------------------------------------------------------
+\section*{10. References}
+
+\begin{itemize}
+    \item dbdiagram.io
+    \item PostgreSQL Documentation
+    \item Next.js Documentation
+    \item Tailwind UI inspiration
+\end{itemize}
+
+\end{document}
